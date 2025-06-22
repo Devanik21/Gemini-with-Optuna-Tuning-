@@ -1,6 +1,12 @@
 import streamlit as st
 import google.generativeai as genai
 import optuna
+import numpy as np
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense, Embedding
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.utils import to_categorical
 
 # --- Sidebar Configuration ---
 st.sidebar.title("⚙️ Configuration")
@@ -15,7 +21,34 @@ prompt_templates = [
     "Next word after '{}':",
 ]
 
-# --- Define Objective Function ---
+# --- RNN/LSTM Training Helper ---
+def train_rnn_model(text_corpus):
+    tokenizer = Tokenizer()
+    tokenizer.fit_on_texts([text_corpus])
+    total_words = len(tokenizer.word_index) + 1
+
+    input_sequences = []
+    tokens = tokenizer.texts_to_sequences([text_corpus])[0]
+    for i in range(1, len(tokens)):
+        input_sequences.append(tokens[:i+1])
+
+    max_seq_len = max([len(seq) for seq in input_sequences])
+    input_sequences = pad_sequences(input_sequences, maxlen=max_seq_len, padding='pre')
+
+    X = input_sequences[:, :-1]
+    y = input_sequences[:, -1]
+    y = to_categorical(y, num_classes=total_words)
+
+    model = Sequential()
+    model.add(Embedding(total_words, 64, input_length=max_seq_len-1))
+    model.add(LSTM(64))
+    model.add(Dense(total_words, activation='softmax'))
+    model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+    model.fit(X, y, epochs=200, verbose=0)
+    return model, tokenizer, max_seq_len
+
+# --- Define Optuna Objective Function ---
 def make_objective(text_input, model):
     def objective(trial):
         template = trial.suggest_categorical("template", prompt_templates)
@@ -23,25 +56,23 @@ def make_objective(text_input, model):
         try:
             response = model.generate_content(full_prompt)
             output = response.text.strip().split()
-            if len(output) > 0:
-                score = len(output[0])  # Shorter next word = better (you can change logic)
-            else:
-                score = 10
+            score = len(output[0]) if output else 10
         except Exception:
-            score = 10  # Penalize errors
+            score = 10
         return score
     return objective
 
-# --- Gemini Setup + UI ---
+# --- Main App Logic ---
 if api_key:
     try:
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-1.5-flash')
         st.session_state.model = model
         st.sidebar.success("✨ Gemini model configured!")
-        
-        st.title("🔮 Gemini Prompt Optimizer for Next Word Prediction")
+
+        st.title("🔮 Gemini + LSTM Next Word Predictor")
         text_input = st.text_input("Enter partial sentence:", "The stars are")
+        corpus_input = st.text_area("Training Corpus (for LSTM)", "The stars are shining bright in the sky. The sky is full of stars.")
 
         if st.button("🔍 Tune Best Prompt"):
             with st.spinner("Tuning prompt with Optuna..."):
@@ -51,16 +82,26 @@ if api_key:
                 best_template = study.best_params["template"]
                 final_prompt = best_template.format(text_input)
                 final_output = model.generate_content(final_prompt).text.strip()
-                
                 st.success(f"✨ Best Prompt: {best_template}")
-                st.write("📝 Gemini's next word prediction:")
                 st.markdown(f"**{final_output}**")
+
+        if st.button("🧠 Train LSTM & Predict"):
+            with st.spinner("Training LSTM model on custom corpus..."):
+                lstm_model, tokenizer, max_seq_len = train_rnn_model(corpus_input)
+                seq = tokenizer.texts_to_sequences([text_input])[0]
+                seq = pad_sequences([seq], maxlen=max_seq_len-1, padding='pre')
+                pred_index = np.argmax(lstm_model.predict(seq), axis=-1)[0]
+                predicted_word = ""
+                for word, index in tokenizer.word_index.items():
+                    if index == pred_index:
+                        predicted_word = word
+                        break
+                st.success(f"🔡 LSTM Prediction: {text_input} **{predicted_word}**")
 
     except Exception as e:
         st.sidebar.error(f"Invalid API Key: {e}")
 else:
     st.warning("Please enter your API key to begin.")
 
-# Footer
 st.markdown("---")
-st.caption("💖 Prompt tuning with Gemini + Optuna = magic sparkles~")
+st.caption("💖 Gemini + LSTM = next word superpowers~")
