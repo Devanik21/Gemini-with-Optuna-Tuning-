@@ -82,28 +82,6 @@ else:
 
 
 # --- About Section ---
-st.sidebar.markdown("---")
-st.sidebar.subheader("📖 About this App")
-st.sidebar.markdown("""
-This app helps you **tune the best prompt** for next-word prediction using:
-
-- 🧠 **Gemini 1.5 Flash**: Google's powerful language model.
-- 🎯 **Optuna**: A smart hyperparameter optimization library that finds the best prompt structure.
-
-### 💡 How It Works:
-1. You enter a partial sentence (like: *The stars are*).
-2. Optuna tries different prompt templates to wrap around it.
-3. Each prompt is sent to the Gemini model.
-4. The app scores Gemini’s output (shorter predicted words get a higher score).
-5. After trying 10 prompts, Optuna selects the best one!
-
-### 🧪 Tuning Logic:
-- Templates like `"Predict the next word: '{}'"` are tested.
-- The length of the predicted word is used as the score (shorter = better).
-- Errors are penalized to avoid failed generations.
-
-✨ *It’s like giving Gemini the cutest outfit for the best performance!* 💃🌌
-""")
 
 # Footer
 st.markdown("---")
