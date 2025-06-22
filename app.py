@@ -4,7 +4,24 @@ import optuna
 
 # --- Sidebar Configuration ---
 st.sidebar.title("⚙️ Configuration")
-api_key = st.sidebar.text_input("Google AI API Key", type="password", help="Get your key from https://aistudio.google.com/app/apikey")
+api_key = st.sidebar.text_input(
+    "Google AI API Key", type="password",
+    help="Get your key from https://aistudio.google.com/app/apikey"
+)
+
+# --- About Section ---
+with st.sidebar.expander("ℹ️ About"):
+    st.markdown(
+        """
+- **What it does**: Tunes prompt templates to get the best next-word prediction from Gemini.
+- **Configuration**: Enter your Gemini API key in the sidebar.
+- **Input**: Partial sentence provided by the user.
+- **Prompt Templates**: A set of five template formats is tested.
+- **Tuning**: Uses Optuna to try different templates and selects the one that yields the shortest next word.
+- **Output**: Shows the best template and Gemini's predicted next word.
+- **Libraries**: Streamlit for UI, google-generativeai for Gemini, Optuna for hyperparameter search.
+        """
+    )
 
 # --- Sample Prompt Templates ---
 prompt_templates = [
@@ -18,17 +35,16 @@ prompt_templates = [
 # --- Define Objective Function ---
 def make_objective(text_input, model):
     def objective(trial):
+        # Choose a template and format with user input
         template = trial.suggest_categorical("template", prompt_templates)
         full_prompt = template.format(text_input)
         try:
             response = model.generate_content(full_prompt)
             output = response.text.strip().split()
-            if len(output) > 0:
-                score = len(output[0])  # Shorter next word = better (you can change logic)
-            else:
-                score = 10
+            # Score: length of the first predicted word (shorter = better)
+            score = len(output[0]) if output else 10
         except Exception:
-            score = 10  # Penalize errors
+            score = 10  # Penalize any errors
         return score
     return objective
 
