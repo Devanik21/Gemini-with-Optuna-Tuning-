@@ -2,11 +2,11 @@ import streamlit as st
 import google.generativeai as genai
 import optuna
 import numpy as np
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense, Embedding
-from tensorflow.keras.preprocessing.sequence import pad_sequences
-from tensorflow.keras.preprocessing.text import Tokenizer
-from tensorflow.keras.utils import to_categorical
+from keras.models import Sequential
+from keras.layers import LSTM, Dense, Embedding
+from keras.preprocessing.sequence import pad_sequences
+from keras.preprocessing.text import Tokenizer
+from keras.utils import to_categorical
 
 # --- Sidebar Configuration ---
 st.sidebar.title("⚙️ Configuration")
@@ -32,7 +32,7 @@ def train_rnn_model(text_corpus):
     for i in range(1, len(tokens)):
         input_sequences.append(tokens[:i+1])
 
-    max_seq_len = max([len(seq) for seq in input_sequences])
+    max_seq_len = max(len(seq) for seq in input_sequences)
     input_sequences = pad_sequences(input_sequences, maxlen=max_seq_len, padding='pre')
 
     X = input_sequences[:, :-1]
@@ -45,7 +45,7 @@ def train_rnn_model(text_corpus):
     model.add(Dense(total_words, activation='softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 
-    model.fit(X, y, epochs=200, verbose=0)
+    model.fit(X, y, epochs=50, verbose=1)
     return model, tokenizer, max_seq_len
 
 # --- Define Optuna Objective Function ---
@@ -90,16 +90,13 @@ if api_key:
                 lstm_model, tokenizer, max_seq_len = train_rnn_model(corpus_input)
                 seq = tokenizer.texts_to_sequences([text_input])[0]
                 seq = pad_sequences([seq], maxlen=max_seq_len-1, padding='pre')
-                pred_index = np.argmax(lstm_model.predict(seq), axis=-1)[0]
-                predicted_word = ""
-                for word, index in tokenizer.word_index.items():
-                    if index == pred_index:
-                        predicted_word = word
-                        break
+                preds = lstm_model.predict(seq)
+                pred_index = np.argmax(preds, axis=-1)[0]
+                predicted_word = next((word for word, index in tokenizer.word_index.items() if index == pred_index), "")
                 st.success(f"🔡 LSTM Prediction: {text_input} **{predicted_word}**")
 
     except Exception as e:
-        st.sidebar.error(f"Invalid API Key: {e}")
+        st.sidebar.error(f"Invalid API Key or setup error: {e}")
 else:
     st.warning("Please enter your API key to begin.")
 
