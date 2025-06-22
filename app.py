@@ -2,11 +2,12 @@ import streamlit as st
 import google.generativeai as genai
 import optuna
 import numpy as np
-from keras.models import Sequential
-from keras.layers import LSTM, Dense, Embedding
-from keras.preprocessing.sequence import pad_sequences
-from keras.preprocessing.text import Tokenizer
-from keras.utils import to_categorical
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense, Embedding
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.utils import to_categorical
 
 # --- Sidebar Configuration ---
 st.sidebar.title("⚙️ Configuration")
