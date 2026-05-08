@@ -13,7 +13,7 @@ def create_objective(client, dataset, metric_fn, task_type):
         from src.gemini.prompts import get_prompt
         for item in dataset:
             prompt = get_prompt(task_type, variant, item["input"])
-            prediction = "Mock prediction" # MOCK for testing
+            prediction = client.generate(prompt, temperature=temperature)
             score = metric_fn(prediction, item["target"])
             scores.append(score)
 
